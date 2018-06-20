@@ -1,0 +1,220 @@
+#!/bin/sh
+
+yesterday=`date +"%Y%m%d" -d last-day`;
+
+mysql -u123 -p123456 -h192.168.1.37 -P33061 --default-character-set=utf8 dcfota -Ne "
+INSERT INTO tt_push_plus_data(
+			project,
+			countDate,
+			actualDate,
+			showTotal,
+			userTotal,
+			netTime,
+			wifiFreq,
+			wifiShow,
+			wifiUser,
+			instFreq,
+			instShow,
+			instUser,
+			unInstFreq,
+			unInstShow,
+			unInstUser,
+			currentUrl)
+SELECT project,
+			countDate,
+			actualDate,
+			showTotal,
+			userTotal,
+			netTime,
+			wifiFreq,
+			wifiShow,
+			wifiUser,
+			instFreq,
+			instShow,
+			instUser,
+			unInstFreq,
+			unInstShow,
+			unInstUser,
+			currentUrl
+FROM (
+ SELECT 
+	project_code AS project,
+	date_format(now(),'%Y-%m-%d') AS countDate,
+  date_sub(date_format(now(),'%Y-%m-%d'),interval 1 day) AS actualDate,
+  showTotal,
+	userTotal,
+	validTime AS netTime,
+	freq100 AS wifiFreq,
+	SUM(showNum100) AS wifiShow,
+	SUM(userNum100) AS wifiUser,
+	freq101 AS instFreq,
+	SUM(showNum101) AS instShow,
+	SUM(userNum101) AS instUser,
+	freq102 AS unInstFreq,
+	SUM(showNum102) AS unInstShow,
+	SUM(userNum102) AS unInstUser,
+  url AS currentUrl
+FROM
+	(SELECT 
+		CASE WHEN t.status = '100' THEN showNum ELSE 0 END AS showNum100,
+		CASE WHEN t.status = '100' THEN userNum ELSE 0 END AS userNum100, 
+		freq100, 
+		CASE WHEN t.status = '101' THEN showNum ELSE 0 END AS showNum101,
+		CASE WHEN t.status = '101' THEN userNum ELSE 0 END AS userNum101,
+		freq101, 
+		CASE WHEN t.status = '102' THEN showNum ELSE 0 END AS showNum102,
+		CASE WHEN t.status = '102' THEN userNum ELSE 0 END AS userNum102,
+		freq102, 
+		project_code,validTime,url
+	FROM
+		(SELECT
+		   count(*) AS showNum,
+			 d.STATUS,
+			 COUNT(DISTINCT d.imei) AS userNum,
+			 CASE WHEN d.remark IS NOT NULL THEN d.remark ELSE 'url' END AS url,
+			 d.project_code,
+			 p.freq100,
+			 p.freq101,
+			 p.freq102,
+			 p.validPeriod AS validTime
+		FROM
+			tt_app_down_install_$yesterday d
+		LEFT JOIN (
+			 select SUM(freq100) AS freq100,SUM(freq101) AS freq101,SUM(freq102) AS freq102,projectId,validPeriod FROM
+				(select 
+					CASE WHEN s.typeId = 3 THEN s.frequency ELSE 0 END AS freq100,
+					CASE WHEN s.typeId = 1 THEN s.frequency ELSE 0 END AS freq101,
+					CASE WHEN s.typeId = 2 THEN s.frequency ELSE 0 END AS freq102,
+				s.projectId,
+				s.validPeriod
+				FROM tt_scene_push s) M
+				GROUP BY M.projectId
+		 ) p ON d.project_code = p.projectId 
+		WHERE d.status > 99 AND d.status <201
+		GROUP BY d.STATUS,d.project_code,d.remark) t
+		) F
+LEFT JOIN 
+			(SELECT
+				t.project_code AS project ,
+				count(*) AS showTotal,
+				COUNT(DISTINCT t.imei) AS userTotal,
+				CASE WHEN remark IS NOT NULL THEN remark ELSE 'url' END AS remark
+			FROM
+				tt_app_down_install_$yesterday t
+			WHERE t.status > 99 AND t.status <201
+			GROUP BY t.project_code,t.remark
+			) D 
+ON F.project_code = D.project
+AND D.remark = F.url
+GROUP BY F.project_code,F.url
+) M"
+mysql -u123 -p123456 -h192.168.1.39 -P3306 --default-character-set=utf8 dcfire -Ne "
+INSERT INTO tt_push_plus_data(
+			project,
+			countDate,
+			actualDate,
+			showTotal,
+			userTotal,
+			netTime,
+			wifiFreq,
+			wifiShow,
+			wifiUser,
+			instFreq,
+			instShow,
+			instUser,
+			unInstFreq,
+			unInstShow,
+			unInstUser,
+			currentUrl)
+SELECT project,
+			countDate,
+			actualDate,
+			showTotal,
+			userTotal,
+			netTime,
+			wifiFreq,
+			wifiShow,
+			wifiUser,
+			instFreq,
+			instShow,
+			instUser,
+			unInstFreq,
+			unInstShow,
+			unInstUser,
+			currentUrl
+FROM (
+ SELECT 
+	project_code AS project,
+	date_format(now(),'%Y-%m-%d') AS countDate,
+  date_sub(date_format(now(),'%Y-%m-%d'),interval 1 day) AS actualDate,
+  showTotal,
+	userTotal,
+	validTime AS netTime,
+	freq100 AS wifiFreq,
+	SUM(showNum100) AS wifiShow,
+	SUM(userNum100) AS wifiUser,
+	freq101 AS instFreq,
+	SUM(showNum101) AS instShow,
+	SUM(userNum101) AS instUser,
+	freq102 AS unInstFreq,
+	SUM(showNum102) AS unInstShow,
+	SUM(userNum102) AS unInstUser,
+  url AS currentUrl
+FROM
+	(SELECT 
+		CASE WHEN t.status = '100' THEN showNum ELSE 0 END AS showNum100,
+		CASE WHEN t.status = '100' THEN userNum ELSE 0 END AS userNum100, 
+		freq100, 
+		CASE WHEN t.status = '101' THEN showNum ELSE 0 END AS showNum101,
+		CASE WHEN t.status = '101' THEN userNum ELSE 0 END AS userNum101,
+		freq101, 
+		CASE WHEN t.status = '102' THEN showNum ELSE 0 END AS showNum102,
+		CASE WHEN t.status = '102' THEN userNum ELSE 0 END AS userNum102,
+		freq102, 
+		project_code,validTime,url
+	FROM
+		(SELECT
+		   count(*) AS showNum,
+			 d.STATUS,
+			 COUNT(DISTINCT d.imei) AS userNum,
+			 CASE WHEN d.remark IS NOT NULL THEN d.remark ELSE 'url' END AS url,
+			 d.project_code,
+			 p.freq100,
+			 p.freq101,
+			 p.freq102,
+			 p.validPeriod AS validTime
+		FROM
+			tt_app_down_install_$yesterday d
+		LEFT JOIN (
+			 select SUM(freq100) AS freq100,SUM(freq101) AS freq101,SUM(freq102) AS freq102,projectId,validPeriod FROM
+				(select 
+					CASE WHEN s.typeId = 3 THEN s.frequency ELSE 0 END AS freq100,
+					CASE WHEN s.typeId = 1 THEN s.frequency ELSE 0 END AS freq101,
+					CASE WHEN s.typeId = 2 THEN s.frequency ELSE 0 END AS freq102,
+				s.projectId,
+				s.validPeriod
+				FROM tt_scene_push s) M
+				GROUP BY M.projectId
+		 ) p ON d.project_code = p.projectId 
+		WHERE d.status > 99 AND d.status <201
+		GROUP BY d.STATUS,d.project_code,d.remark) t
+		) F
+LEFT JOIN 
+			(SELECT
+				t.project_code AS project ,
+				count(*) AS showTotal,
+				COUNT(DISTINCT t.imei) AS userTotal,
+				CASE WHEN remark IS NOT NULL THEN remark ELSE 'url' END AS remark
+			FROM
+				tt_app_down_install_$yesterday t
+			WHERE t.status > 99 AND t.status <201
+			GROUP BY t.project_code,t.remark
+			) D 
+ON F.project_code = D.project
+AND D.remark = F.url
+GROUP BY F.project_code,F.url
+) N"
+
+
+
+
